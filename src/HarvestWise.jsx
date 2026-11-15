@@ -300,8 +300,19 @@ export default function HarvestWise({
     }
   }, [S]);
 
+  /* Keep the latest reply visible: scroll the chat body itself to the bottom
+     (double animation-frame so tall list bubbles have settled), never the page. */
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = chatEndRef.current?.parentElement;
+    if (!el) return;
+    const raf = () => {
+      el.scrollTop = el.scrollHeight;
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    };
+    const id = requestAnimationFrame(raf);
+    return () => cancelAnimationFrame(id);
   }, [activeMessages.length, typing, S.activeSession]);
 
   useEffect(
