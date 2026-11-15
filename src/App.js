@@ -141,6 +141,15 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  /* Gate: HarvestWise requires sign-in. Unsigned visits bounce to the landing
+     page with the sign-in modal open — nothing of the copilot is shown. */
+  useEffect(() => {
+    if (view === "harvest" && !user) {
+      setView("landing");
+      setSignInOpen(true);
+    }
+  }, [view, user]);
+
   useEffect(() => {
     if (!signInOpen) return;
     const timer = window.setTimeout(() => nameInputRef.current?.focus(), 60);
@@ -199,6 +208,7 @@ export default function App() {
   };
 
   if (view === "harvest") {
+    if (!user) return null; /* redirected to landing + sign-in by the gate effect */
     return (
       <HarvestWise
         merchantName={user?.name || ""}
