@@ -873,6 +873,21 @@ export function guardReply(aiText, fallback, state) {
   return sentences.length > 4 ? sentences.slice(0, 3).join(" ") : text;
 }
 
+function shelfAnswer(item, state) {
+  const rain = rainProb(state);
+  const place = locationById(state.location);
+  const hours = effectiveShelfHours(item, rain);
+  const risk = riskFor(hours, rain).label;
+  const ta = langOf(state) === "ta";
+  return {
+    reply: ta
+      ? `இன்று ${nameIn(item, "ta")} சுமார் ${hours} மணி நேரம் இருக்கும் (மழை ${rain}%, ${place.name}) — ஆபத்து ${RISK_TA[risk] || risk}. ஆர்டரில் ${item.qty} ${unitIn(item.unit, "ta")} உள்ளது.`
+      : `${item.name} keeps about ${hours} hours today (rain ${rain}%, ${place.name}) — ${risk.toLowerCase()} risk. You have ${item.qty} ${item.unit} in the order.`,
+    action: null,
+    authoritative: true,
+  };
+}
+
 export function buildReply(raw, state) {
   const text = (raw || "").toLowerCase().trim();
   const lang = langOf(state);
@@ -998,6 +1013,32 @@ export function buildReply(raw, state) {
     };
   }
 
+  if (has(text, K.history)) {
+    const hist = orderHistoryFromLedger(state);
+    const days = hist.length;
+    const spent = hist.reduce((s, h) => s + h.total, 0);
+    const avg = days ? Math.round(spent / days) : 0;
+    const peak = hist.reduce((b, h) => (h.total > (b?.total || 0) ? h : b), hist[0] || null);
+    const peakLine = peak
+      ? pick(
+          ` Biggest day: ${peak.label} (${peak.dow}) at ₹${peak.total.toLocaleString("en-IN")}.`,
+          ` அதிகபட்ச நாள்: ${peak.label} (${peak.dow}) ₹${peak.total.toLocaleString("en-IN")}.`
+        )
+      : "";
+    const summary = hist
+      .slice(0, 5)
+      .map((h) => `${h.label}: ₹${h.total.toLocaleString("en-IN")}`)
+      .join(" · ");
+    return {
+      reply: pick(
+        `You placed ${days} orders this month — ₹${spent.toLocaleString("en-IN")} total, about ₹${avg} a day.${peakLine} Latest: ${summary}.`,
+        `இந்த மாதம் ${days} ஆர்டர்கள் — மொத்தம் ₹${spent.toLocaleString("en-IN")}, சராசரியாக ₹${avg}/நாள்.${peakLine} சமீபத்தியவை: ${summary}.`
+      ),
+      action: null,
+      authoritative: true,
+    };
+  }
+
   if (has(text, K.summary)) {
     const lines = state.order.map((o) => `${o.name} ${o.qty} ${o.unit} (₹${o.qty * o.price})`).join(", ");
     const pendingLine = pending
@@ -1068,39 +1109,9 @@ export function buildReply(raw, state) {
     };
   }
 
-  if (has(text, K.spoil)) {
-    const named = itemFromText(text, state.order) || catalogItem(text);
-    if (named) {
-      const hours = effectiveShelfHours(named, rain);
-      return {
-        reply: pick(
-          `${named.name} keeps about ${hours} hours today (rain ${rain}%, ${place.name}) — ${riskFor(hours, rain).label.toLowerCase()} risk. You have ${named.qty} ${named.unit} in the order.`,
-          `இன்று ${nameIn(named, "ta")} சுமார் ${hours} மணி நேரம் இருக்கும் (மழை ${rain}%, ${place.name}) — ஆபத்து ${RISK_TA[riskFor(hours, rain).label] || riskFor(hours, rain).label}. ஆர்டரில் ${named.qty} ${unitIn(named.unit, "ta")} உள்ளது.`
-        ),
-        action: null,
-        authoritative: true,
-      };
-    }
-    const advice = pick(
-      rain >= 60
-        ? `At ${rain}% rain it drops to ~4 hours, so I'd buy 6 bundles instead of 10 — about ₹88 of stock kept off the bin.`
-        : rain >= 30
-        ? `With ${rain}% rain it keeps ~6 hours, so 8 bundles instead of 10 is the safer buy.`
-        : `At ${rain}% rain it keeps the full ~8 hours, so your 10 bundles are fine — just sell them before noon.`,
-      rain >= 60
-        ? `${rain}% மழையில் 4 மணி நேரம் மட்டுமே — 10 கட்டுக்கு பதிலாக 6 கட்டு வாங்குங்கள். சுமார் ₹88 வீணாவது தவிர்க்கப்படும்.`
-        : rain >= 30
-        ? `${rain}% மழையில் 6 மணி நேரம் இருக்கும் — 10க்கு பதிலாக 8 கட்டு பாதுகாப்பானது.`
-        : `${rain}% மழையில் முழு 8 மணி நேரம் இருக்கும் — 10 கட்டு பரவாயில்லை, மதியத்துக்கு முன் விற்றுவிடுங்கள்.`
-    );
-    return {
-      reply: pick(`Coriander lasts ~8 hours dry. ${advice}`, `கொத்தமல்லி உலர்வாக 8 மணி நேரம் இருக்கும். ${advice}`),
-      action: null,
-      authoritative: true,
-    };
-  }
-
   if (has(text, K.stock)) {
+    const shelfItem = itemFromText(text, state.order) || catalogItem(text);
+    if (shelfItem && /shelf|life|spoil|ஆயுள்|கெட்டுப்போ/.test(text)) return shelfAnswer(shelfItem, state);
     const low = state.order.filter((o) => (Math.max(0, Number(o.stock) || 0) / Math.max(1, o.salesAvg || o.baseQty)) < 0.5);
     const stockLine = state.order
       .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
@@ -1121,27 +1132,23 @@ export function buildReply(raw, state) {
     };
   }
 
-  if (has(text, K.history)) {
-    const hist = orderHistoryFromLedger(state);
-    const days = hist.length;
-    const spent = hist.reduce((s, h) => s + h.total, 0);
-    const avg = days ? Math.round(spent / days) : 0;
-    const peak = hist.reduce((b, h) => (h.total > (b?.total || 0) ? h : b), hist[0] || null);
-    const peakLine = peak
-      ? pick(
-          ` Biggest day: ${peak.label} (${peak.dow}) at ₹${peak.total.toLocaleString("en-IN")}.`,
-          ` அதிகபட்ச நாள்: ${peak.label} (${peak.dow}) ₹${peak.total.toLocaleString("en-IN")}.`
-        )
-      : "";
-    const summary = hist
-      .slice(0, 5)
-      .map((h) => `${h.label}: ₹${h.total.toLocaleString("en-IN")}`)
-      .join(" · ");
+  if (has(text, K.spoil)) {
+    const named = itemFromText(text, state.order) || catalogItem(text);
+    if (named) return shelfAnswer(named, state);
+    const advice = pick(
+      rain >= 60
+        ? `At ${rain}% rain it drops to ~4 hours, so I'd buy 6 bundles instead of 10 — about ₹88 of stock kept off the bin.`
+        : rain >= 30
+        ? `With ${rain}% rain it keeps ~6 hours, so 8 bundles instead of 10 is the safer buy.`
+        : `At ${rain}% rain it keeps the full ~8 hours, so your 10 bundles are fine — just sell them before noon.`,
+      rain >= 60
+        ? `${rain}% மழையில் 4 மணி நேரம் மட்டுமே — 10 கட்டுக்கு பதிலாக 6 கட்டு வாங்குங்கள். சுமார் ₹88 வீணாவது தவிர்க்கப்படும்.`
+        : rain >= 30
+        ? `${rain}% மழையில் 6 மணி நேரம் இருக்கும் — 10க்கு பதிலாக 8 கட்டு பாதுகாப்பானது.`
+        : `${rain}% மழையில் முழு 8 மணி நேரம் இருக்கும் — 10 கட்டு பரவாயில்லை, மதியத்துக்கு முன் விற்றுவிடுங்கள்.`
+    );
     return {
-      reply: pick(
-        `You placed ${days} orders this month — ₹${spent.toLocaleString("en-IN")} total, about ₹${avg} a day.${peakLine} Latest: ${summary}.`,
-        `இந்த மாதம் ${days} ஆர்டர்கள் — மொத்தம் ₹${spent.toLocaleString("en-IN")}, சராசரியாக ₹${avg}/நாள்.${peakLine} சமீபத்தியவை: ${summary}.`
-      ),
+      reply: pick(`Coriander lasts ~8 hours dry. ${advice}`, `கொத்தமல்லி உலர்வாக 8 மணி நேரம் இருக்கும். ${advice}`),
       action: null,
       authoritative: true,
     };

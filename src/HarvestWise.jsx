@@ -132,6 +132,7 @@ const titleFrom = (text) => {
 
 const TABS = [
   { id: "today", icon: "🏠", key: "tabToday" },
+  { id: "suggest", icon: "🛒", key: "tabSuggest" },
   { id: "orders", icon: "📦", key: "tabOrders" },
   { id: "data", icon: "📊", key: "tabData" },
   { id: "memory", icon: "🧠", key: "tabMemory" },
@@ -176,6 +177,7 @@ export default function HarvestWise({
   const [stockReminder, setStockReminder] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [dataSel, setDataSel] = useState(null);
   const [locOpen, setLocOpen] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -689,6 +691,14 @@ export default function HarvestWise({
     });
     setGraphLoading(false);
   };
+
+  /* Auto-ask Cognee once when the merchant opens Memory, so the section
+     always has something to show — no blank state. */
+  useEffect(() => {
+    if (tab !== "memory" || graphAnswer || graphLoading) return;
+    const timer = window.setTimeout(() => askGraph(t("graphAskDefault")), 450);
+    return () => window.clearTimeout(timer);
+  }, [tab]);
 
   /* ---------- chat ---------- */
   const sendMessage = (raw) => {
@@ -1731,113 +1741,48 @@ export default function HarvestWise({
               </div>
             </section>
 
-            {/* Today at a glance — your three numbers, one tap each to the view that explains them. */}
-            <section className="hw-hero">
-              {stats.map((stat) => (
-                <button
-                  type="button"
-                  className="hw-hero-tile"
-                  key={stat.label}
-                  onClick={() => openStat(stat)}
-                  aria-label={stat.label}
-                >
-                  <span className={"hw-hero-icon tone-" + stat.tone} aria-hidden="true">
-                    {stat.icon}
-                  </span>
-                  <span className="hw-hero-copy">
-                    <span className="hw-hero-label">{stat.label}</span>
-                    <strong className={"tone-" + stat.tone}>{stat.value}</strong>
-                    <small>{stat.delta}</small>
-                  </span>
-                </button>
-              ))}
-            </section>
-
-            {/* Agent prediction: what to buy / skip today, from last night's stock + live weather. */}
-            <section className="hw-card hw-suggest" aria-label={t("suggestTitle")}>
+            {/* Merchant growth — numbers that compound + one actionable tip. */}
+            <section className="hw-card hw-growth">
               <div className="hw-card-head">
                 <div>
-                  <h2>🧮 {t("suggestTitle")}</h2>
-                  <p className="hw-card-sub">{t("suggestSub")}</p>
+                  <h2>📈 {t("growthTitle")}</h2>
+                  <p className="hw-card-sub">{t("growthSub")}</p>
                 </div>
-                <div className="hw-suggest-actions">
-                  <span className="hw-badge blue">{inr(prediction.total)}</span>
-                  <button
-                    className="hw-btn hw-btn-primary hw-btn-sm"
-                    onClick={applySuggestions}
-                    disabled={prediction.buy.length === 0}
-                  >
-                    ⚡ {t("suggestApplyBtn")}
-                  </button>
-                  <button className="hw-btn hw-btn-outline hw-btn-sm" onClick={emailSuggestions}>
-                    📧 {t("suggestEmailBtn")}
-                  </button>
+                <button className="hw-btn hw-btn-outline hw-btn-sm" onClick={() => onMetrics?.()}>
+                  {t("growthOpenModel")}
+                </button>
+              </div>
+              <div className="hw-growth-grid">
+                <div className="hw-growth-metric">
+                  <span className="hw-growth-label">{t("takeHome")}</span>
+                  <strong>{inr(S.takeHome)} <em>+34%</em></strong>
+                  <span className="hw-growth-bar">
+                    <span style={{ width: `${Math.min(100, Math.round((S.takeHome / 32000) * 100))}%` }} />
+                  </span>
+                </div>
+                <div className="hw-growth-metric">
+                  <span className="hw-growth-label">{t("statPreserved")}</span>
+                  <strong>{inr(S.preserved)}</strong>
+                  <span className="hw-growth-bar">
+                    <span style={{ width: `${Math.min(100, Math.round((S.preserved / 8000) * 100))}%` }} />
+                  </span>
+                </div>
+                <div className="hw-growth-metric">
+                  <span className="hw-growth-label">{t("growthWeekly")}</span>
+                  <strong>{inr(S.weeklyDelta)}</strong>
+                  <span className="hw-growth-bar">
+                    <span style={{ width: `${Math.min(100, Math.round((S.weeklyDelta / 5000) * 100))}%` }} />
+                  </span>
                 </div>
               </div>
-
-              <div className="hw-suggest-weather">
-                <span className="hw-wchip">☔ {t("wchipRain")}: <b>{prediction.rain}%</b></span>
-                <span className="hw-wchip">🌡 {t("wchipTemp")}: <b>{prediction.temp}°C</b></span>
-                {prediction.humidity != null && (
-                  <span className="hw-wchip">💧 {t("wchipHumidity")}: <b>{prediction.humidity}%</b></span>
-                )}
-                {prediction.tomorrow != null && (
-                  <span className="hw-wchip">🔮 {t("wchipTomorrow")}: <b>{prediction.tomorrow}%</b></span>
-                )}
-                <span className="hw-wchip hw-wchip-note">{t("suggestBasis")}</span>
-              </div>
-
-              <div className="hw-suggest-grid">
-                <div className="hw-suggest-col">
-                  <div className="hw-suggest-label green">✅ {t("suggestBuy")}</div>
-                  {prediction.buy.length === 0 && <p className="hw-suggest-none">{t("suggestBuyNone")}</p>}
-                  {prediction.buy.map((b) => (
-                    <div className="hw-suggest-row" key={b.id}>
-                      <span className="hw-suggest-name">
-                        <span aria-hidden="true">{b.emoji}</span> {b.name}
-                      </span>
-                      <span className="hw-suggest-vel" title={t("velocityTitle")}>
-                        ~{b.salesAvg || b.need}/{t("dayShort")}
-                      </span>
-                      <span className="hw-suggest-qty">
-                        <b>{b.toBuy}</b> {b.unit}
-                      </span>
-                      <span className="hw-suggest-cost">{inr(b.cost)}</span>
-                      <span className={"hw-chip-reason " + (b.reason === "topup" ? "amber" : "green")}>
-                        {b.reason === "topup"
-                          ? fmt(t("reasonTopUp"), { stock: b.stock })
-                          : fmt(t("reasonBuy"), { need: b.need })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="hw-suggest-col">
-                  <div className="hw-suggest-label red">🚫 {t("suggestSkip")}</div>
-                  {prediction.skip.length === 0 && <p className="hw-suggest-none">{t("suggestSkipNone")}</p>}
-                  {prediction.skip.map((s) => (
-                    <div className="hw-suggest-row" key={s.id}>
-                      <span className="hw-suggest-name">
-                        <span aria-hidden="true">{s.emoji}</span> {s.name}
-                      </span>
-                      <span className="hw-suggest-vel" title={t("velocityTitle")}>
-                        ~{s.salesAvg || s.need}/{t("dayShort")}
-                      </span>
-                      <span className="hw-suggest-qty">
-                        <b>{s.stock}</b> {s.unit}
-                      </span>
-                      <span className="hw-suggest-cost muted">—</span>
-                      <span className="hw-chip-reason green">
-                        {s.reason === "stock-covers"
-                          ? fmt(t("reasonStockCovers"), { stock: s.stock })
-                          : fmt(t("reasonWeatherCovers"), { stock: s.stock, need: s.need })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {prediction.buy.length > 0 && (
+                <p className="hw-growth-tip">
+                  💡 {fmt(t("growthTip"), { name: prediction.buy[0].name, vel: prediction.buy[0].velocity || prediction.buy[0].need })}
+                </p>
+              )}
             </section>
 
+            {moreOpen && (
             <section className="hw-brief">
               <div className="hw-brief-copy">
                 <div className="hw-brief-eyebrow">
@@ -1915,6 +1860,7 @@ export default function HarvestWise({
                 </div>
               </div>
             </section>
+            )}
 
             <div className="hw-dash-grid">
               <section className="hw-card">
@@ -2023,7 +1969,42 @@ export default function HarvestWise({
               </section>
             </div>
 
-            <section className="hw-card hw-demo">
+            <button
+              className="hw-more-toggle"
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-expanded={moreOpen}
+            >
+              <span>{moreOpen ? t("hideMore") : t("showMore")}</span>
+              <span className={"hw-chevron" + (moreOpen ? " is-open" : "")} aria-hidden="true">
+                ▾
+              </span>
+            </button>
+
+            {moreOpen && (
+              <>
+                {/* Today at a glance — your three numbers, one tap each to the view that explains them. */}
+                <section className="hw-hero">
+                  {stats.map((stat) => (
+                    <button
+                      type="button"
+                      className="hw-hero-tile"
+                      key={stat.label}
+                      onClick={() => openStat(stat)}
+                      aria-label={stat.label}
+                    >
+                      <span className={"hw-hero-icon tone-" + stat.tone} aria-hidden="true">
+                        {stat.icon}
+                      </span>
+                      <span className="hw-hero-copy">
+                        <span className="hw-hero-label">{stat.label}</span>
+                        <strong className={"tone-" + stat.tone}>{stat.value}</strong>
+                        <small>{stat.delta}</small>
+                      </span>
+                    </button>
+                  ))}
+                </section>
+
+                <section className="hw-card hw-demo">
               <button
                 className="hw-card-head hw-accordion-head"
                 onClick={() => setDemoOpen((o) => !o)}
@@ -2066,6 +2047,156 @@ export default function HarvestWise({
                     <span className="hw-tl-text">{entry.text}</span>
                   </div>
                 ))}
+              </div>
+            </section>
+              </>
+            )}
+          </>
+        )}
+
+        {tab === "suggest" && (
+          <>
+            <div className="hw-page-head">
+              <h1>🛒 {t("suggestPageTitle")}</h1>
+              <p>{t("suggestPageSub")}</p>
+            </div>
+
+            {/* Today's decision at a glance */}
+            <div className="hw-suggest-hero">
+              <div className="hw-suggest-hero-main">
+                <span className="hw-suggest-hero-label">{t("suggestBuyTotal")}</span>
+                <strong>{inr(prediction.total)}</strong>
+                <small>
+                  {prediction.buy.length} {t("suggestItems")} · {prediction.skip.length} {t("suggestSkipped")}
+                </small>
+              </div>
+              <div className="hw-suggest-hero-stats">
+                <div className="hw-suggest-hero-stat">
+                  <span>✅ {t("suggestBuy")}</span>
+                  <b>{prediction.buy.length}</b>
+                </div>
+                <div className="hw-suggest-hero-stat is-skip">
+                  <span>🚫 {t("suggestSkip")}</span>
+                  <b>{prediction.skip.length}</b>
+                </div>
+                <div className="hw-suggest-hero-stat is-save">
+                  <span>🪙 {t("savedBySkipping")}</span>
+                  <b>{inr(prediction.skip.reduce((sum, s) => sum + s.stock * s.price, 0))}</b>
+                </div>
+              </div>
+              <div className="hw-suggest-weather">
+                <span className="hw-wchip">☔ {t("wchipRain")}: <b>{prediction.rain}%</b></span>
+                <span className="hw-wchip">🌡 {t("wchipTemp")}: <b>{prediction.temp}°C</b></span>
+                {prediction.humidity != null && (
+                  <span className="hw-wchip">💧 {t("wchipHumidity")}: <b>{prediction.humidity}%</b></span>
+                )}
+                {prediction.tomorrow != null && (
+                  <span className="hw-wchip">🔮 {t("wchipTomorrow")}: <b>{prediction.tomorrow}%</b></span>
+                )}
+              </div>
+            </div>
+
+            <div className="hw-suggest-grid">
+              <div className="hw-suggest-col">
+                <div className="hw-suggest-label green">✅ {t("suggestBuy")}</div>
+                {prediction.buy.length === 0 && <p className="hw-suggest-none">{t("suggestBuyNone")}</p>}
+                {prediction.buy.map((b) => (
+                  <div className="hw-suggest-row is-item" key={b.id}>
+                    <span className="hw-suggest-icobubble" aria-hidden="true">
+                      {b.emoji}
+                    </span>
+                    <span className="hw-suggest-info">
+                      <strong>{b.name}</strong>
+                      <small>
+                        ~{b.velocity || b.salesAvg || b.need}/{t("dayShort")} · {t("inStock")} {b.stock} {b.unit}
+                      </small>
+                      <span className="hw-suggest-coverbar">
+                        <span
+                          style={{
+                            width: `${Math.min(100, Math.round((b.stock / Math.max(1, b.need)) * 100))}%`,
+                          }}
+                        />
+                      </span>
+                    </span>
+                    <span className="hw-suggest-qty-big">
+                      <b>{b.toBuy}</b> {b.unit}
+                    </span>
+                    <span className="hw-suggest-cost">{inr(b.cost)}</span>
+                    <span className={"hw-chip-reason " + (b.reason === "topup" ? "amber" : "green")}>
+                      {b.reason === "topup"
+                        ? fmt(t("reasonTopUp"), { stock: b.stock })
+                        : fmt(t("reasonBuy"), { need: b.need })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hw-suggest-col">
+                <div className="hw-suggest-label red">🚫 {t("suggestSkip")}</div>
+                {prediction.skip.length === 0 && <p className="hw-suggest-none">{t("suggestSkipNone")}</p>}
+                {prediction.skip.map((s) => (
+                  <div className="hw-suggest-row" key={s.id}>
+                    <span className="hw-suggest-name">
+                      <span aria-hidden="true">{s.emoji}</span> {s.name}
+                    </span>
+                    <span className="hw-suggest-vel" title={t("velocityTitle")}>
+                      ~{s.velocity || s.salesAvg || s.need}/{t("dayShort")}
+                    </span>
+                    <span className="hw-suggest-qty">
+                      <b>{s.stock}</b> {s.unit}
+                    </span>
+                    <span className="hw-suggest-cost muted">—</span>
+                    <span className="hw-chip-reason green">
+                      {s.reason === "stock-covers"
+                        ? fmt(t("reasonStockCovers"), { stock: s.stock })
+                        : fmt(t("reasonWeatherCovers"), { stock: s.stock, need: s.need })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <section className="hw-card hw-suggest-actions-row">
+              <div className="hw-suggest-actions">
+                <button
+                  className="hw-btn hw-btn-primary"
+                  onClick={applySuggestions}
+                  disabled={prediction.buy.length === 0}
+                >
+                  ⚡ {t("suggestApplyBtn")}
+                </button>
+                <button className="hw-btn hw-btn-outline" onClick={emailSuggestions}>
+                  📧 {t("suggestEmailBtn")}
+                </button>
+              </div>
+              <p className="hw-suggest-note">{t("suggestApplyNote")}</p>
+            </section>
+
+            {/* Transparency: how this is predicted */}
+            <section className="hw-card hw-suggest-how">
+              <div className="hw-card-head">
+                <div>
+                  <h2>🔎 {t("suggestHowTitle")}</h2>
+                  <p className="hw-card-sub">{t("suggestHowSub")}</p>
+                </div>
+              </div>
+              <div className="hw-suggest-how-steps">
+                <div className="hw-suggest-how-step">
+                  <span className="hw-suggest-how-num">1</span>
+                  <strong>{t("suggestHow1Title")}</strong>
+                  <small>{t("suggestHow1Body")}</small>
+                </div>
+                <div className="hw-suggest-how-step">
+                  <span className="hw-suggest-how-num">2</span>
+                  <strong>{t("suggestHow2Title")}</strong>
+                  <small>{t("suggestHow2Body")}</small>
+                </div>
+                <div className="hw-suggest-how-step">
+                  <span className="hw-suggest-how-num">3</span>
+                  <strong>{t("suggestHow3Title")}</strong>
+                  <small>{t("suggestHow3Body")}</small>
+                </div>
               </div>
             </section>
           </>
@@ -2634,6 +2765,9 @@ export default function HarvestWise({
                   {graphLoading ? t("graphAskThinking") : t("graphAskBtn")}
                 </button>
               </form>
+              {!graphAnswer && !graphLoading && (
+                <p className="hw-graph-hint">💡 {t("graphAskHint")}</p>
+              )}
               {graphAnswer && (
                 <div className={"hw-graph-answer" + (graphAnswer.source === "local" ? " is-local" : "")}>
                   <span className="hw-graph-answer-src">

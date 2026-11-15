@@ -45,14 +45,17 @@ this repository — the service is created with the right build/start commands.
 ## Demo path (2 minutes)
 
 1. **Landing** — Paytm nav, hero, quick actions, 11 service tiles, HarvestWise spotlight.
-2. **Sign in with just a name** and pick Tamil or English; that language becomes the
-   default for UI copy, copilot replies, ASR and TTS (changeable anytime).
+2. **Sign in with a name, a language and your area** (Basavanagudi, Whitefield, …).
+   The language becomes the default for UI copy, copilot replies, ASR and TTS, and the
+   area drives the Open-Meteo pin and the mandi she quotes; both change anytime in Settings.
 3. **Today** — the sidebar-first workspace: morning voice briefing with live rain
    probability, Soundbox player, buy-order with shelf-life risk, and the copilot panel.
 4. Tap **⚡ Recalculate with AI** → coriander/palak trimmed by rain risk → approval card.
 5. Tap **✓ Yes, send it** → dispatch to Ravi anna, WhatsApp deep link, memory event logged.
 6. Ask the copilot anything: *"will it rain today?"*, *"coriander shelf life?"*,
-   *"best mandi rate"* — or hold the mic and say it in Tamil.
+   *"best mandi rate"*, *"what's in my order?"* — or hold the mic and say it in Tamil.
+   You can also **change the order by voice**: *"add 2 kg beans"*, *"remove palak"*,
+   *"set coriander to 8"* — every edit is confirmed with the exact new total.
 7. **"A day with HarvestWise"** — tap 6:30 AM / 9:14 AM / 11:02 AM / 8:30 PM to run the
    Observe → Predict → Act → Learn loop.
 8. **Sidebar → Orders / Memory / Settings** for dispatches, the Cognee-style graph and
@@ -73,6 +76,23 @@ this repository — the service is created with the right build/start commands.
 
 On mobile the sidebar becomes an off-canvas drawer behind a hamburger, and the copilot
 panel moves above the order table so the voice loop is one tap away.
+
+## Copilot skills
+
+The copilot is a deterministic commerce agent first and an LLM second, so a demo can never
+show an invented number:
+
+- **Live answers from state** — weather (always naming her area), per-item mandi rate,
+  per-item shelf life and risk, the full order with line totals, profit, memory lessons, and
+  “why did you trim?” explaining the pending change line by line.
+- **Order editing by voice or text** — add / remove / set / increase / reduce on any line,
+  including a catalog item that is not in the order yet (real price, real unit). The reply
+  carries the new total, and any edit clears a stale pending approval.
+- **Numbers guard** — Sarvam answers open questions, then every ₹ figure and % is checked
+  against the live state: an invented number, or a weather answer that omits her area, is
+  replaced by the deterministic answer. Replies are trimmed to three sentences for TTS.
+- **Approval discipline** — only an explicit yes dispatches; “no” restores the exact
+  pre-recalculation order, not the seed order.
 
 ## Command palette (⌘K / Ctrl+K)
 
@@ -145,10 +165,10 @@ reasoning model returns empty content, and `sarvam-30b` / `sarvam-m` are retired
 
 ```
 src/
-  App.js          Paytm landing page, sign-in modal, view switch
+  App.js          Paytm landing page, sign-in modal (name, language, area), view switch
   HarvestWise.jsx Copilot app: sidebar shell, briefing, order, chat, voice, memory
   Metrics.jsx     Investor model: spoilage, take-home, unit economics
-  copilot.js      Domain model, spoilage math, reply engine, Sarvam clients
+  copilot.js      Domain model, spoilage math, reply engine, order edits, guard, Sarvam clients
   i18n.js         English/Tamil strings + voice codes
   styles.css      Design system for landing, app, metrics
 server.js         Zero-dependency Sarvam proxy + static build server
@@ -160,6 +180,9 @@ legacy/           Original static HTML/CSS/JS prototype (reference only)
 
 - Sarvam chat, TTS and STT round-trips in both languages (English + Tamil).
 - Full voice loop in Chrome: mic → MediaRecorder → `/api/stt` → transcript → reply → `/api/tts` playback.
+- 25-check workspace run + 22-check copilot run: sign-in area drives weather and replies,
+  Settings location switch, voice order edits persist and recompute the total, decline
+  restores the order, Tamil shelf answer, no console errors.
 - 19-check browser run: sidebar navigation, language switch, chat, TTS, approval gate,
   dispatch, settings voice sample, investor page, no console errors.
 - Command palette: ⌘K open, filtered command execution, free-text fallback to the copilot,
