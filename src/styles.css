@@ -1758,6 +1758,35 @@ img {
   font-weight: 600;
 }
 
+/* Message entrance + interactive list bubbles */
+@keyframes hwMsgIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hw-msg {
+  animation: hwMsgIn 0.32s ease both;
+}
+.hw-chat-body {
+  scroll-behavior: smooth;
+}
+.hw-list-row,
+.hw-list-line,
+.hw-list-head {
+  animation: hwMsgIn 0.3s ease both;
+}
+.hw-list-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
 /* List-shaped bot bubbles (suggestions, stock) */
 .hw-msg-list {
   display: flex;
@@ -5758,6 +5787,57 @@ img {
 @media (max-width: 900px) {
   .hw-suggest-how-steps {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Tonight's stock card on the dashboard */
+.hw-stock-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: linear-gradient(135deg, #fff7e8, #fdf3e2);
+  border: 1px solid #f0d9b4;
+}
+.hw-stock-card-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.hw-stock-card-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+.hw-stock-card-status strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  color: #7a5410;
+}
+.hw-stock-card-status small {
+  display: block;
+  font-size: 11.5px;
+  color: #a0773a;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.hw-stock-card-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hw-stock-card-sched {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a0773a;
+}
+@media (max-width: 640px) {
+  .hw-stock-card-side {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 

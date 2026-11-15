@@ -737,9 +737,15 @@ export default function HarvestWise({
         }
 
         setTyping(false);
+        const listActions = [];
+        if (listMode) {
+          const lower = reply.toLowerCase();
+          if (lower.includes("buy:") || /வாங்கவேண்டியவை/.test(reply)) listActions.push("apply", "email");
+          if (lower.includes("your shelves") || /ஸ்டாக் 📦|கையிருப்பு/.test(reply)) listActions.push("stock");
+        }
         setS((prev) => ({
           ...prev,
-          ...pushMsg(prev, "bot", reply, listMode ? { meta: { kind: "list" } } : undefined),
+          ...pushMsg(prev, "bot", reply, listMode ? { meta: { kind: "list", actions: listActions } } : undefined),
         }));
         speak(reply);
 
@@ -1396,77 +1402,7 @@ export default function HarvestWise({
             </button>
           ))}
 
-          <div className="hw-side-label">{t("sideCapabilities")}</div>
-          <button
-            className="hw-cap"
-            onClick={() => {
-              setNavOpen(false);
-              focusCopilot();
-            }}
-          >
-            <span className="hw-cap-icon" aria-hidden="true">
-              💬
-            </span>
-            <span className="hw-cap-text">
-              <b>{t("sideCopilotChat")}</b>
-              <small>{t("sideCopilotChatHint")}</small>
-            </span>
-          </button>
-          <button
-            className="hw-cap"
-            onClick={() => {
-              setNavOpen(false);
-              setTab("today");
-              window.setTimeout(playBriefing, 80);
-            }}
-          >
-            <span className="hw-cap-icon" aria-hidden="true">🔊</span>
-            <span className="hw-cap-text">
-              <b>{t("sideBriefing")}</b>
-              <small>{t("sideBriefingHint")}</small>
-            </span>
-          </button>
-          <button
-            className="hw-cap"
-            onClick={() => {
-              setNavOpen(false);
-              setTab("today");
-              window.setTimeout(recalcOrder, 120);
-            }}
-          >
-            <span className="hw-cap-icon" aria-hidden="true">⚡</span>
-            <span className="hw-cap-text">
-              <b>{t("sideRestock")}</b>
-              <small>{t("sideRestockHint")}</small>
-            </span>
-          </button>
-          <button
-            className="hw-cap"
-            onClick={() => {
-              setNavOpen(false);
-              setTab("orders");
-            }}
-          >
-            <span className="hw-cap-icon" aria-hidden="true">🛡️</span>
-            <span className="hw-cap-text">
-              <b>{t("sideApprovals")}</b>
-              <small>{t("sideApprovalsHint")}</small>
-            </span>
-          </button>
-          <button
-            className="hw-cap"
-            onClick={() => {
-              setNavOpen(false);
-              if (onMetrics) onMetrics();
-            }}
-          >
-            <span className="hw-cap-icon" aria-hidden="true">📈</span>
-            <span className="hw-cap-text">
-              <b>{t("sideInsights")}</b>
-              <small>{t("sideInsightsHint")}</small>
-            </span>
-          </button>
-        </nav>
+          </nav>
 
         <div className="hw-side-foot">
           <div className="hw-side-plan">
@@ -1650,31 +1586,6 @@ export default function HarvestWise({
                       </button>
                     ))}
                   </div>
-
-                  {/* Today's stock: a scheduled reminder, not a data-entry list.
-                      One glance at the status; one tap to open the update modal. */}
-                  <div className="hw-reminder-card">
-                    <div className={"hw-reminder-status" + (stockUpdatedToday() ? " is-done" : "")}>
-                      <span className="hw-reminder-icon">{stockUpdatedToday() ? "✅" : "🌙"}</span>
-                      <div className="hw-reminder-copy">
-                        <strong>{stockUpdatedToday() ? t("stockDoneTitle") : t("stockDueTitle")}</strong>
-                        <small>
-                          {stockUpdatedToday()
-                            ? fmt(t("stockDoneAt"), { when: stockUpdateLabel() })
-                            : t("stockDueBody")}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="hw-reminder-schedule">
-                      <span>🕘</span> {t("stockSchedule")}
-                    </div>
-                    <button
-                      className="hw-btn hw-btn-primary hw-btn-sm hw-reminder-cta"
-                      onClick={openStockUpdate}
-                    >
-                      {stockUpdatedToday() ? t("stockEditBtn") : t("stockUpdateCta")}
-                    </button>
-                  </div>
                 </aside>
 
                 <div className="hw-chat-pane">
@@ -1694,11 +1605,39 @@ export default function HarvestWise({
                                   className={
                                     isRow ? "hw-list-row" : isHead ? "hw-list-head" : "hw-list-line"
                                   }
+                                  style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
                                 >
                                   {line}
                                 </span>
                               );
                             })}
+                            {message.meta?.actions?.includes("apply") && (
+                              <div className="hw-list-btns">
+                                <button
+                                  className="hw-btn hw-btn-primary hw-btn-sm"
+                                  onClick={applySuggestions}
+                                  disabled={prediction.buy.length === 0}
+                                >
+                                  ⚡ {t("suggestApplyBtn")}
+                                </button>
+                                <button
+                                  className="hw-btn hw-btn-outline hw-btn-sm"
+                                  onClick={emailSuggestions}
+                                >
+                                  📧 {t("suggestEmailBtn")}
+                                </button>
+                              </div>
+                            )}
+                            {message.meta?.actions?.includes("stock") && (
+                              <div className="hw-list-btns">
+                                <button
+                                  className="hw-btn hw-btn-outline hw-btn-sm"
+                                  onClick={openStockUpdate}
+                                >
+                                  🌙 {t("stockUpdateCta")}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <p>{message.text}</p>
@@ -1805,6 +1744,27 @@ export default function HarvestWise({
                   💡 {fmt(t("growthTip"), { name: prediction.buy[0].name, vel: prediction.buy[0].velocity || prediction.buy[0].need })}
                 </p>
               )}
+            </section>
+
+            {/* Tonight's stock — the daily ritual that keeps predictions honest. */}
+            <section className="hw-card hw-stock-card">
+              <div className="hw-stock-card-status">
+                <span className="hw-stock-card-icon">{stockUpdatedToday() ? "✅" : "🌙"}</span>
+                <div>
+                  <strong>{stockUpdatedToday() ? t("stockDoneTitle") : t("stockDueTitle")}</strong>
+                  <small>
+                    {stockUpdatedToday()
+                      ? fmt(t("stockDoneAt"), { when: stockUpdateLabel() })
+                      : t("stockDueBody")}
+                  </small>
+                </div>
+              </div>
+              <div className="hw-stock-card-side">
+                <span className="hw-stock-card-sched">🕘 {t("stockSchedule")}</span>
+                <button className="hw-btn hw-btn-primary hw-btn-sm" onClick={openStockUpdate}>
+                  {stockUpdatedToday() ? t("stockEditBtn") : t("stockUpdateCta")}
+                </button>
+              </div>
             </section>
 
             {moreOpen && (

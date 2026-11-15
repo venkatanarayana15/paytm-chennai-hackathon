@@ -666,7 +666,9 @@ const K = {
   soundbox: ["soundbox", "briefing", "audio", "speak", "அறிக்கை", "கேட்க"],
   hello: ["hello", "hi ", "hey", "namaskara", "namaste", "வணக்கம்", "ஹலோ"],
   help: ["help", "what can you", "how do you", "உதவி", "என்ன செய்வாய்"],
-  predict: ["predict", "suggest", "what should i buy", "buy today", "purchase", "shopping list", "what to buy", "வாங்க", "கொள்வனவு", "பரிந்துரை", "என்ன வாங்க"],
+  predict: ["predict", "suggest", "what should i buy", "buy today", "purchase", "shopping list", "what to buy", "recommend", "what should i stock", "what do i need", "suggest purchase", "வாங்க", "கொள்வனவு", "பரிந்துரை", "என்ன வாங்க", "என்ன வேண்டும்", "வாங்கலாம்"],
+  howmuch: ["how much", "how many", "kitna", "எவ்வளவு", "எத்தனை", "என்ன அளவு", "எத்தனை வேண்டும்"],
+  sellers: ["top seller", "best seller", "which item sells", "what sells most", "most sold", "sales rank", "அதிகம் விற்கும்", "சிறந்த விற்பனை", "முதல் மூன்று", "எது அதிகம் விற்கும்"],
   summary: ["what's in my order", "what is in my order", "my order", "order total", "current order", "how many items", "என் ஆர்டர்", "ஆர்டரில் என்ன"],
   edit: ["add ", "add", "remove", "delete", "increase", "reduce", "set ", "take out", "சேர்", "நீக்கு", "குறை", "கூட்டு"],
   why: ["why did you", "why trim", "why reduce", "why not", "explain", "ஏன்"],
@@ -1013,6 +1015,29 @@ export function buildReply(raw, state) {
     };
   }
 
+  if (has(text, K.sellers)) {
+    const hist = orderHistoryFromLedger(state);
+    const totals = {};
+    hist.forEach((day) => day.items.forEach((it) => { totals[it.id] = (totals[it.id] || 0) + (it.sold || 0); }));
+    const top = Object.entries(totals)
+      .map(([id, total]) => ({ id, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 3);
+    const lines = top.map((t) => {
+      const p = state.order.find((o) => o.id === t.id);
+      return `• ${p?.emoji || ""} ${p?.name || t.id} — ${t.total.toLocaleString("en-IN")} sold`;
+    });
+    return {
+      reply: pick(
+        `Top sellers in the last 30 days 📈\n${lines.join("\n")}`,
+        `கடந்த 30 நாளில் அதிகம் விற்றவை 📈\n${lines.join("\n")}`
+      ),
+      action: null,
+      authoritative: true,
+      list: true,
+    };
+  }
+
   if (has(text, K.history)) {
     const hist = orderHistoryFromLedger(state);
     const days = hist.length;
@@ -1084,6 +1109,42 @@ export function buildReply(raw, state) {
       action: null,
       authoritative: true,
     };
+  }
+
+  /* A named product + a quantity/purchase question → one-item advice.
+     Must run before the broader mandi/history intents so “how much banana”
+     doesn't get answered as a market-rate question. */
+  const namedItem = itemFromText(text, state.order) || catalogItem(text);
+  const asksAboutItem =
+    namedItem &&
+    (has(text, K.howmuch) ||
+      has(text, K.predict) ||
+      /\b(buy|need|should|sell|order|stock)\b/.test(text) ||
+      /(வாங்க|தேவை|வேண்டும்|விற்க|கொள்வனவு)/.test(text));
+  if (asksAboutItem) {
+    const prediction = predictPurchases(state);
+    const buy = prediction.buy.find((b) => b.id === namedItem.id);
+    const skip = prediction.skip.find((s) => s.id === namedItem.id);
+    if (buy) {
+      return {
+        reply: pick(
+          `For ${buy.name} in ${place.name}: buy ${buy.toBuy} ${buy.unit} today (₹${buy.cost.toLocaleString("en-IN")}) — you sell ~${buy.velocity || buy.salesAvg || buy.need} a day and have ${buy.stock} on hand.`,
+          `${place.name} இல் ${nameIn(buy, "ta")}: இன்று ${buy.toBuy} ${unitIn(buy.unit, "ta")} வாங்குங்கள் (₹${buy.cost.toLocaleString("en-IN")}) — ஒரு நாளுக்கு ~${buy.velocity || buy.salesAvg || buy.need} விற்கிறீர்கள், கையிருப்பு ${buy.stock}.`
+        ),
+        action: null,
+        authoritative: true,
+      };
+    }
+    if (skip) {
+      return {
+        reply: pick(
+          `No need to buy ${skip.name} today — you have ${skip.stock} ${skip.unit} on hand, which covers the ~${skip.velocity || skip.salesAvg || skip.need} a day you sell.`,
+          `இன்று ${nameIn(skip, "ta")} வாங்கத் தேவையில்லை — கையிருப்பு ${skip.stock} ${unitIn(skip.unit, "ta")}, ஒரு நாளுக்கு ~${skip.velocity || skip.salesAvg || skip.need} விற்கிறீர்கள்.`
+        ),
+        action: null,
+        authoritative: true,
+      };
+    }
   }
 
   if (has(text, K.mandi)) {
@@ -1202,12 +1263,12 @@ export function buildReply(raw, state) {
       `${prediction.rain}% மழை · ${prediction.temp}°C${prediction.humidity != null ? ` · ${prediction.humidity}% ஈரப்பதம்` : ""}`
     );
     const reply = pick(
-      `Here's today's plan 🌤\nWeather: ${weatherLine}\n\nBUY:\n${
+      `Here's today's plan for ${place.name} 🌤\nWeather: ${weatherLine}\n\nBUY:\n${
         buyLines.length ? buyLines.join("\n") : "• nothing — your shelves cover today"
       }\n\nSKIP:\n${
         skipLines.length ? skipLines.join("\n") : "• nothing skipped"
       }\n\nTap Apply or say “dispatch” when ready.`,
-      `இன்றைய திட்டம் 🌤\nவானிலை: ${weatherLine}\n\nவாங்கவேண்டியவை:\n${
+      `${place.name} க்கான இன்றைய திட்டம் 🌤\nவானிலை: ${weatherLine}\n\nவாங்கவேண்டியவை:\n${
         buyLines.length ? buyLines.join("\n") : "• எதுவும் இல்லை — அலமாரி போதும்"
       }\n\nதவிர்க்க:\n${
         skipLines.length ? skipLines.join("\n") : "• எதுவும் இல்லை"
