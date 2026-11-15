@@ -1062,10 +1062,10 @@ export function buildReply(raw, state) {
   }
 
   if (has(text, K.sellers)) {
-    const hist = orderHistoryFromLedger(state);
+    const hist = state.salesHistory || [];
     const totals = {};
     hist.forEach((day) =>
-      day.items.forEach((it) => {
+      (day.items || []).forEach((it) => {
         const sold = typeof it.sold === "number" ? it.sold : Math.max(0, (it.bought || 0) - (it.stocked || 0));
         totals[it.id] = (totals[it.id] || 0) + sold;
       })
