@@ -1113,22 +1113,23 @@ export function buildReply(raw, state) {
     const shelfItem = itemFromText(text, state.order) || catalogItem(text);
     if (shelfItem && /shelf|life|spoil|ஆயுள்|கெட்டுப்போ/.test(text)) return shelfAnswer(shelfItem, state);
     const low = state.order.filter((o) => (Math.max(0, Number(o.stock) || 0) / Math.max(1, o.salesAvg || o.baseQty)) < 0.5);
-    const stockLine = state.order
-      .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
-      .join(", ");
-    const lowLine = low.length
-      ? pick(
-          ` Running low: ${low.map((o) => o.name).join(", ")} — I'd top these up today.`,
-          ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")} — இன்று கூடுதல் வாங்கலாம்.`
-        )
-      : pick(" All items have solid cover.", " அனைத்துப் பொருட்களுக்கும் போதுமான கையிருப்பு உள்ளது.");
+    const stockLines = state.order.map(
+      (o) => `• ${o.name} — ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`
+    );
+    const lowLines = low.map((o) => `• ${o.name} — ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`);
+    const reply = pick(
+      `Your shelves 📦\n${stockLines.join("\n")}\n\n${
+        low.length ? `RUNNING LOW:\n${lowLines.join("\n")}` : "All items have solid cover."
+      }`,
+      `உங்கள் ஸ்டாக் 📦\n${stockLines.join("\n")}\n\n${
+        low.length ? `குறைவாக உள்ளவை:\n${lowLines.join("\n")}` : "அனைத்துப் பொருட்களுக்கும் போதுமான கையிருப்பு."
+      }`
+    );
     return {
-      reply: pick(
-        `Your shelves: ${stockLine} (logged at 9 PM).${lowLine}`,
-        `உங்கள் ஸ்டாக்: ${stockLine} (இரவு 9 மணிக்கு பதிவு).${lowLine}`
-      ),
+      reply,
       action: null,
       authoritative: true,
+      list: true,
     };
   }
 
@@ -1190,23 +1191,33 @@ export function buildReply(raw, state) {
 
   if (has(text, K.predict)) {
     const prediction = predictPurchases(state);
-    const buyLine = prediction.buy.length
-      ? prediction.buy.map((b) => `${b.name} ${b.toBuy} ${b.unit}`).join(", ")
-      : pick("nothing — your shelves already cover today", "எதுவுமில்லை — அலமாரியில் இன்றைக்குத் தேவை போதும்");
-    const skipLine = prediction.skip.length
-      ? prediction.skip.map((s) => `${s.name} (${s.stock} ${s.unit} in stock)`).join(", ")
-      : pick("nothing skipped", "எதுவும் நிறுத்தப்படவில்லை");
+    const buyLines = prediction.buy.map(
+      (b) => `• ${b.name} — ${b.toBuy} ${b.unit} (₹${(b.cost || 0).toLocaleString("en-IN")})`
+    );
+    const skipLines = prediction.skip.map(
+      (s) => `• ${s.name} — ${s.stock} ${s.unit} already on hand`
+    );
     const weatherLine = pick(
-      `${prediction.rain}% rain, ${prediction.temp}°C${prediction.humidity != null ? `, ${prediction.humidity}% humidity` : ""}`,
-      `${prediction.rain}% மழை, ${prediction.temp}°C${prediction.humidity != null ? `, ${prediction.humidity}% ஈரப்பதம்` : ""}`
+      `${prediction.rain}% rain · ${prediction.temp}°C${prediction.humidity != null ? ` · ${prediction.humidity}% humidity` : ""}`,
+      `${prediction.rain}% மழை · ${prediction.temp}°C${prediction.humidity != null ? ` · ${prediction.humidity}% ஈரப்பதம்` : ""}`
+    );
+    const reply = pick(
+      `Here's today's plan 🌤\nWeather: ${weatherLine}\n\nBUY:\n${
+        buyLines.length ? buyLines.join("\n") : "• nothing — your shelves cover today"
+      }\n\nSKIP:\n${
+        skipLines.length ? skipLines.join("\n") : "• nothing skipped"
+      }\n\nTap Apply or say “dispatch” when ready.`,
+      `இன்றைய திட்டம் 🌤\nவானிலை: ${weatherLine}\n\nவாங்கவேண்டியவை:\n${
+        buyLines.length ? buyLines.join("\n") : "• எதுவும் இல்லை — அலமாரி போதும்"
+      }\n\nதவிர்க்க:\n${
+        skipLines.length ? skipLines.join("\n") : "• எதுவும் இல்லை"
+      }\n\nபொருத்தவா அல்லது “அனுப்பு” என்று சொல்லுங்கள்.`
     );
     return {
-      reply: pick(
-        `Weather today: ${weatherLine}. From your regular sales, buy: ${buyLine} — about ₹${prediction.total}. Skip: ${skipLine}. Built from the stock you logged at 9 PM and the live forecast.`,
-        `இன்றைய வானிலை: ${weatherLine}. உங்கள் சாதாரண விற்பனையிலிருந்து வாங்க: ${buyLine} — சுமார் ₹${prediction.total}. வாங்க வேண்டாதவை: ${skipLine}. நேற்று இரவு 9 மணி ஸ்டாக் மற்றும் நேரடி வானிலை அடிப்படையில் இதைக் கணக்கிட்டேன்.`
-      ),
+      reply,
       action: null,
       authoritative: true,
+      list: true,
     };
   }
 

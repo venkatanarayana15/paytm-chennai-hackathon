@@ -115,10 +115,10 @@ const uid = () => `id-${Date.now()}-${seq++}`;
 /* Append a message to the ACTIVE chat session. Returns ONLY the sessions
    slice — callers spread their own state around it so fields set earlier in
    the same update (settings, location, …) are never overwritten. */
-const pushMsg = (prev, role, text) => ({
+const pushMsg = (prev, role, text, meta) => ({
   sessions: prev.sessions.map((session) =>
     session.id === prev.activeSession
-      ? { ...session, messages: [...session.messages, { id: uid(), role, text }] }
+      ? { ...session, messages: [...session.messages, { id: uid(), role, text, ...(meta || {}) }] }
       : session
   ),
 });
@@ -727,16 +727,20 @@ export default function HarvestWise({
       try {
         const local = buildReply(text, SRef.current);
         const action = local.action;
+        const listMode = local.list === true;
         let reply = local.reply;
 
         // Money actions stay deterministic; open questions go to Sarvam's Indic LLM.
         if (!action && ai.chat && !local.authoritative) {
           const aiReply = await askSarvam(text, SRef.current, history);
-          if (aiReply) reply = guardReply(aiReply, local.reply, SRef.current);
+          if (aiReply) reply = aiReply;
         }
 
         setTyping(false);
-        setS((prev) => ({ ...prev, ...pushMsg(prev, "bot", reply) }));
+        setS((prev) => ({
+          ...prev,
+          ...pushMsg(prev, "bot", reply, listMode ? { meta: { kind: "list" } } : undefined),
+        }));
         speak(reply);
 
         if (action === "recalc") window.setTimeout(recalcOrder, 500);
@@ -1677,7 +1681,28 @@ export default function HarvestWise({
                   <div className="hw-chat-body">
                     {activeMessages.map((message) => (
                       <div className={"hw-msg " + message.role} key={message.id}>
-                        <p>{message.text}</p>
+                        {message.meta?.kind === "list" ? (
+                          <div className="hw-msg-list">
+                            {message.text.split("\n").map((line, index) => {
+                              const trimmed = line.trim();
+                              if (!trimmed) return null;
+                              const isRow = trimmed.startsWith("• ");
+                              const isHead = !isRow && trimmed.endsWith(":");
+                              return (
+                                <span
+                                  key={index}
+                                  className={
+                                    isRow ? "hw-list-row" : isHead ? "hw-list-head" : "hw-list-line"
+                                  }
+                                >
+                                  {line}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p>{message.text}</p>
+                        )}
                         <span className="hw-msg-meta">
                           {message.role === "user" ? (lang === "ta" ? "நீங்கள்" : "You") : "HarvestWise"}
                         </span>
