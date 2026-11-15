@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# production build
+/build
+
+# local demo artefacts
+.chrome-profile/
+*.log
+tmp-*
+
+# local agent config
+.opencode/
+
+# secrets
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db

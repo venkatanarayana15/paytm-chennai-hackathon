@@ -1,0 +1,22 @@
+{
+  "name": "harvestwise-paytm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Paytm-style merchant experience with HarvestWise — Track 1 Merchant Growth AI",
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "server": "node server.js",
+    "start:full": "node server.js & react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test"
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  }
+}
