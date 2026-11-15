@@ -5034,7 +5034,7 @@ img {
 }
 .hw-product-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) 88px 104px 104px 92px 100px 38px;
+  grid-template-columns: minmax(140px, 1.5fr) 92px 108px 96px 108px 38px;
   gap: 10px;
   align-items: center;
   padding: 9px 12px;

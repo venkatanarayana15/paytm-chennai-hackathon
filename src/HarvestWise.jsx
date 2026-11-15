@@ -2461,7 +2461,6 @@ export default function HarvestWise({
                   <span>{t("productName")}</span>
                   <span>{t("productPrice")}</span>
                   <span>{t("productQty")}</span>
-                  <span>{t("stockHeader")}</span>
                   <span>{t("productUnit")}</span>
                   <span>{t("productPerishable")}</span>
                   <span />
@@ -2497,36 +2496,6 @@ export default function HarvestWise({
                       >
                         +
                       </button>
-                    </span>
-                    <span className="hw-qty hw-stock">
-                      <button
-                        onClick={() => updateStock(item.id, -1)}
-                        aria-label={`Reduce ${item.name} stock`}
-                      >
-                        −
-                      </button>
-                      <b>{Math.max(0, Number(item.stock) || 0)}</b>
-                      <button
-                        onClick={() => updateStock(item.id, 1)}
-                        aria-label={`Increase ${item.name} stock`}
-                      >
-                        +
-                      </button>
-                      {(() => {
-                        const vel = velocityFor(S, item.id, item.salesAvg || item.baseQty);
-                        const stock = Math.max(0, Number(item.stock) || 0);
-                        const cover = stock / Math.max(1, vel);
-                        const low = cover < 0.5;
-                        return (
-                          <small
-                            className={"hw-cover" + (low ? " is-low" : "")}
-                            title={t("coverTitle")}
-                          >
-                            {cover >= 1 ? "≈" : ""}
-                            {cover.toFixed(1)}d{low ? " ⚠" : ""}
-                          </small>
-                        );
-                      })()}
                     </span>
                     <span>
                       <select
