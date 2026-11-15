@@ -30,6 +30,18 @@ speech output uses the browser's `speechSynthesis`, and speech input uses
 `webkitSpeechRecognition` (Chrome/Edge). The sidebar AI chip shows **Local mode**
 instead of **Sarvam live**.
 
+## Deploy on Render
+
+The repo ships a `render.yaml` blueprint. In Render: **New → Blueprint** and select
+this repository — the service is created with the right build/start commands.
+
+- Build: `npm install && npm run build` (React bundle)
+- Start: `node server.js` (zero-dependency proxy serves `build/` + APIs)
+- Health check: `/api/health`
+- Set the **SARVAM_API_KEY** secret (from https://dashboard.sarvam.ai) — without it the
+  app still runs in local mode. Optional secrets: `COGNEE_BASE_URL`, `COGNEE_API_KEY`
+  for the Cognee memory service; model overrides already default in `server.js`.
+
 ## Demo path (2 minutes)
 
 1. **Landing** — Paytm nav, hero, quick actions, 11 service tiles, HarvestWise spotlight.
