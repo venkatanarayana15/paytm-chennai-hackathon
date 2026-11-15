@@ -1186,13 +1186,16 @@ export function buildReply(raw, state) {
         low.length ? `குறைவாக உள்ளவை:\n${lowLines.join("\n")}` : "அனைத்துப் பொருட்களுக்கும் போதுமான கையிருப்பு."
       }`
     );
+    /* Spoken: per-item “Name: quantity unit.” clauses, capped so the voice
+       stays clear; quantities can't drift onto the wrong product. */
+    const stockSpoken = state.order.map(
+      (o) => `${o.name}: ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`
+    );
+    const stockSpokenTop = stockSpoken.slice(0, 8).join(". ");
+    const stockSpokenTail = stockSpoken.length > 8 ? `, and ${stockSpoken.length - 8} more items` : "";
     const spoken = pick(
-      `Your shelves: ${state.order
-        .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
-        .join(", ")}.${low.length ? ` Running low: ${low.map((o) => o.name).join(", ")}.` : " All items have solid cover."}`,
-      `உங்கள் ஸ்டாக்: ${state.order
-        .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
-        .join(", ")}.${low.length ? ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")}.` : " அனைத்திற்கும் போதுமான கையிருப்பு."}`
+      `Your shelves: ${stockSpokenTop}${stockSpokenTail}.${low.length ? ` Running low: ${low.map((o) => o.name).join(", ")}.` : " All items have solid cover."}`,
+      `உங்கள் ஸ்டாக்: ${stockSpokenTop}${stockSpokenTail}.${low.length ? ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")}.` : " அனைத்திற்கும் போதுமான கையிருப்பு."}`
     );
     return {
       reply,
@@ -1284,11 +1287,12 @@ export function buildReply(raw, state) {
       }\n\nபொருத்தவா அல்லது “அனுப்பு” என்று சொல்லுங்கள்.`
     );
     /* The spoken version is one flowing sentence — the agent never reads the
-       bullet list aloud. */
-    const spokenBuy = prediction.buy.map((b) => `${b.name} ${b.toBuy} ${b.unit}`).join(", ");
+       bullet list aloud. Each item is spoken as “Name: quantity unit.” so a
+       quantity can never be attributed to the wrong product. */
+    const spokenBuy = prediction.buy.map((b) => `${b.name}: ${b.toBuy} ${b.unit}`).join(". ");
     const spokenSkip = prediction.skip
-      .map((s) => `${s.name}, you already have ${s.stock} ${s.unit}`)
-      .join(", ");
+      .map((s) => `${s.name}: you already have ${s.stock} ${s.unit}`)
+      .join(". ");
     const spoken = pick(
       `Here's today's plan for ${place.name}. Buy: ${spokenBuy || "nothing — your shelves cover today"}. Skip: ${
         spokenSkip || "nothing"
