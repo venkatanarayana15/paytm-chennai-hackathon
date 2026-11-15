@@ -28,6 +28,7 @@ import {
   newSessionId,
   LOCATIONS,
   locationById,
+  DEFAULT_LOCATION,
 } from "./copilot";
 import { LANGUAGES, tr, fmt, voiceCode } from "./i18n";
 
@@ -176,6 +177,9 @@ export default function HarvestWise({
   const [draftProduct, setDraftProduct] = useState({ name: "", unit: "kg", price: "", qty: "1", stock: "0", category: "veg", perishable: true });
   const [stockReminder, setStockReminder] = useState(false);
   const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftLoc, setDraftLoc] = useState(DEFAULT_LOCATION);
   const [demoOpen, setDemoOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [dataSel, setDataSel] = useState(null);
@@ -1116,6 +1120,22 @@ export default function HarvestWise({
     }, 240);
   };
 
+  /* Brand tap → profile popup (name + location). */
+  const openProfile = () => {
+    setDraftName(SRef.current.name || name);
+    setDraftLoc(SRef.current.location || DEFAULT_LOCATION);
+    setProfileOpen(true);
+  };
+  const saveProfile = () => {
+    const clean = draftName.trim().split(/\s+/).slice(0, 3).join(" ");
+    if (clean.length >= 2) {
+      setS((prev) => ({ ...prev, name: clean }));
+    }
+    if (draftLoc && draftLoc !== SRef.current.location) changeLocation(draftLoc);
+    setProfileOpen(false);
+    notify(t("toastProfileSaved"));
+  };
+
   const emailSuggestions = () => {
     const to = S.email || merchantEmail;
     if (!to) {
@@ -1366,13 +1386,13 @@ export default function HarvestWise({
           <button className="hw-back" onClick={onBack} aria-label="Back to Paytm">
             <span aria-hidden="true">←</span> Paytm
           </button>
-          <div className="hw-brand">
+          <button className="hw-brand hw-brand-btn" onClick={openProfile} aria-label={t("profileTitle")}>
             <div className="hw-brand-mark">🌾</div>
             <div>
               <div className="hw-brand-name">HarvestWise</div>
               <div className="hw-brand-sub">Merchant copilot · Track 1</div>
             </div>
-          </div>
+          </button>
         </div>
 
         <button className="hw-side-search" onClick={() => setPaletteOpen(true)} aria-label={t("paletteOpen")}>
@@ -3051,6 +3071,70 @@ export default function HarvestWise({
                   {tourStep === TOUR_STEPS.length - 1 ? t("tourDone") : t("tourNext")}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {profileOpen && (
+        <div className="hw-modal-overlay" onClick={() => setProfileOpen(false)}>
+          <div
+            className="hw-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("profileTitle")}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="hw-modal-head">
+              <h3>🌾 {t("profileTitle")}</h3>
+              <p className="hw-modal-sub">{t("profileSub")}</p>
+              <button className="hw-modal-close" onClick={() => setProfileOpen(false)} aria-label={t("dismiss")}>
+                ✕
+              </button>
+            </div>
+            <div className="hw-profile-body">
+              <div className="hw-profile-field">
+                <label htmlFor="profile-name">{t("profileName")}</label>
+                <input
+                  id="profile-name"
+                  value={draftName}
+                  onChange={(event) => setDraftName(event.target.value)}
+                  placeholder={name}
+                  maxLength={40}
+                  autoComplete="name"
+                />
+              </div>
+              <div className="hw-profile-field">
+                <label htmlFor="profile-loc">{t("setLocation")}</label>
+                <select
+                  id="profile-loc"
+                  value={draftLoc}
+                  onChange={(event) => setDraftLoc(event.target.value)}
+                >
+                  <optgroup label={t("locGroupBlr")}>
+                    {LOCATIONS.filter((l) => l.region === "blr").map((l) => (
+                      <option key={l.id} value={l.id}>
+                        📍 {l.name} · {l.mandi}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t("locGroupTn")}>
+                    {LOCATIONS.filter((l) => l.region === "tn").map((l) => (
+                      <option key={l.id} value={l.id}>
+                        📍 {l.name} · {l.mandi}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <div className="hw-modal-foot">
+              <button className="hw-btn hw-btn-ghost" onClick={() => setProfileOpen(false)}>
+                {t("cancel")}
+              </button>
+              <button className="hw-btn hw-btn-primary" onClick={saveProfile}>
+                {t("profileSave")}
+              </button>
             </div>
           </div>
         </div>

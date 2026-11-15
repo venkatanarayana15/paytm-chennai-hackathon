@@ -1921,6 +1921,10 @@ img {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
   align-items: stretch;
+  min-height: 0;
+}
+.hw-chat-main {
+  min-height: 0;
 }
 .hw-sessions {
   border-right: 1px solid var(--line);
@@ -2179,7 +2183,8 @@ img {
   border-radius: 999px;
 }
 .hw-chat-body {
-  height: 372px;
+  height: clamp(220px, calc(100dvh - 430px), 430px);
+  min-height: 180px;
   overflow-y: auto;
   padding: 14px 16px;
   display: flex;
@@ -2848,7 +2853,7 @@ img {
     display: none;
   }
   .hw-chat-body {
-    height: 280px;
+    height: clamp(200px, calc(100dvh - 330px), 340px);
   }
   .hw-money {
     grid-template-columns: 1fr;
@@ -3900,7 +3905,7 @@ img {
     display: none;
   }
   .hw-chat-body {
-    height: 260px;
+    height: clamp(180px, calc(100dvh - 300px), 300px);
     padding: 12px;
   }
   .hw-chip {
@@ -4387,10 +4392,10 @@ img {
 .hw-chat-main {
   scroll-margin-top: 90px;
 }
-/* Main-dashboard copilot: taller transcript, bubbles stay readable. */
+/* Main-dashboard copilot: fits the viewport, never overflows. */
 @media (min-width: 1081px) {
   .hw-chat-main .hw-chat-body {
-    height: 430px;
+    height: clamp(240px, calc(100dvh - 380px), 440px);
   }
 }
 .hw-chat-main .hw-msg {
@@ -5788,6 +5793,53 @@ img {
   .hw-suggest-how-steps {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* profile popup */
+.hw-brand-btn {
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 10px;
+}
+.hw-brand-btn:hover .hw-brand-name {
+  color: var(--teal);
+}
+.hw-profile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+}
+.hw-profile-field label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-2);
+  margin-bottom: 6px;
+}
+.hw-profile-field input,
+.hw-profile-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  background: #f8fafd;
+}
+.hw-profile-field input:focus,
+.hw-profile-field select:focus {
+  outline: none;
+  border-color: var(--teal);
+  background: #fff;
 }
 
 /* Tonight's stock card on the dashboard */
