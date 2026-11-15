@@ -1019,12 +1019,25 @@ export default function HarvestWise({
           order: prev.order.map((item) => (item.id === edit.id ? { ...item, qty: Math.max(1, Math.round(edit.qty)) } : item)),
         };
       }
+      /* New entry — catalog item or a custom product spoken into existence. */
       const catalog = seedOrder().find((item) => item.id === edit.id);
-      if (!catalog) return prev;
-      return {
-        ...base,
-        order: [...prev.order, { ...catalog, qty: Math.max(1, Math.round(edit.qty)), baseQty: Math.max(1, Math.round(edit.qty)), stock: 0 }],
-      };
+      const created = catalog
+        ? { ...catalog, qty: Math.max(1, Math.round(edit.qty)), baseQty: Math.max(1, Math.round(edit.qty)), stock: 0 }
+        : {
+            id: edit.id,
+            name: edit.name,
+            emoji: "🧺",
+            unit: edit.unit || "kg",
+            price: Number(edit.price) || 40,
+            baseShelfHours: 72,
+            qty: Math.max(1, Math.round(edit.qty)),
+            baseQty: Math.max(1, Math.round(edit.qty)),
+            salesAvg: Math.max(1, Math.round(edit.qty)),
+            stock: 0,
+            category: "other",
+            perishable: false,
+          };
+      return { ...base, order: [...prev.order, created] };
     });
   };
 

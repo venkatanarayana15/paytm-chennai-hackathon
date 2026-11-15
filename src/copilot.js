@@ -415,21 +415,27 @@ export function seedSalesHistory() {
   return out;
 }
 
-/* Regular sales count for a product = average daily sold over the last 7
-   days of the ledger, falling back to the seeded salesAvg. Products not
-   present in the ledger (newly added) use the fallback rate too. */
+/* Regular sales count for a product = weighted average daily sold over the
+   last 14 days (the most recent week counts double), falling back to the
+   seeded salesAvg. Products absent from the ledger use the fallback rate. */
 export function velocityFor(state, productId, fallback) {
   const hist = state.salesHistory || [];
   if (!hist.length) return fallback;
-  const recent = hist.slice(-7);
+  const recent = hist.slice(-14);
   let found = false;
-  const sum = recent.reduce((acc, day) => {
+  let weightSum = 0;
+  let soldSum = 0;
+  recent.forEach((day, i) => {
     const it = day.items.find((x) => x.id === productId);
-    if (it) found = true;
-    return acc + (it ? it.sold : 0);
-  }, 0);
+    if (it && typeof it.sold === "number") {
+      found = true;
+      const w = i < 7 ? 1 : 2;
+      soldSum += it.sold * w;
+      weightSum += w;
+    }
+  });
   if (!found) return fallback;
-  return Math.max(1, Math.round(sum / recent.length));
+  return Math.max(1, Math.round(soldSum / Math.max(1, weightSum)));
 }
 
 /* The 30-day buy-order history, rebuilt from the ledger (what she bought
@@ -554,13 +560,16 @@ export function weatherFactors(state) {
 
 export function predictPurchases(state) {
   const f = weatherFactors(state);
+  /* Weekend/weekday lift from the open-day pattern. */
+  const DOW_FACTOR = [1.12, 0.96, 1, 1, 1.04, 1.08, 1.18];
+  const dowFactor = DOW_FACTOR[new Date().getDay()] || 1;
 
   const buy = [];
   const skip = [];
   state.order.forEach((item) => {
     const fallback = Math.max(0, Math.round(Number(item.salesAvg) || 0) || item.baseQty);
     const velocity = velocityFor(state, item.id, fallback);
-    let need = velocity;
+    let need = velocity * dowFactor;
     if (item.perishable) {
       need = need * f.rainFactor * f.heatFactor * f.humidityFactor;
     } else {
@@ -768,28 +777,60 @@ function unitFromText(text, fallback) {
   return hit ? hit[0] : fallback;
 }
 
-/* "add 2 kg beans", "remove palak", "set coriander to 8", "reduce tomatoes by 2" */
+/* Extract a plain product name from a spoken add command, e.g.
+   "add 2 kg red grapes" → "red grapes". */
+function extractCustomName(text) {
+  return String(text)
+    .toLowerCase()
+    .replace(/\b(add|include|put|new|சேர்|சேர்க்க)\b/g, " ")
+    .replace(/(\d+(?:\.\d+)?)/g, " ")
+    .replace(/\b(kg|kgs|kilo|kilos|crate|crates|box|boxes|bundle|bundles|dozen|pieces|piece|கிலோ|கிரேட்|கட்டு|டஜன்|துண்டு)\b/g, " ")
+    .replace(/[^a-z\u0B80-\u0BFF ]/g, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(" ");
+}
+
+/* "add 2 kg beans", "remove palak", "set coriander to 8", "reduce tomatoes by 2",
+   or an unknown product: "add 2 kg grapes" creates a new order line. */
 export function parseOrderEdit(raw, state) {
   const text = String(raw || "").toLowerCase();
   if (!text) return null;
-  const item = itemFromText(text, state.order) || catalogItem(text);
-  if (!item) return null;
-  const row = state.order.find((i) => i.id === item.id) || null;
-  const price = row ? row.price : item.price;
-  const unit = unitFromText(text, row ? row.unit : item.unit);
-  const byMatch = text.match(/\bby\s+(\d+(?:\.\d+)?)/);
-  const by = byMatch ? Math.max(1, Math.round(Number(byMatch[1]))) : null;
-  const qty = quantityIn(text);
   const hasAdd = /\b(add|include|put|சேர்|சேர்க்க)\b/.test(text);
   const hasRemove = /\b(remove|delete|take out|நீக்கு)\b/.test(text);
   const hasReduce = /\b(reduce|drop|cut|decrease|less|குறை)\b/.test(text);
   const hasIncrease = /\b(increase|raise|more|கூட்டு)\b/.test(text);
   const hasSet = /\b(set|make|change|வை)\b/.test(text);
 
+  let item = itemFromText(text, state.order) || catalogItem(text);
+  if (!item && (hasAdd || hasRemove)) {
+    const customName = extractCustomName(text);
+    if (customName) {
+      item = { id: `custom-${Date.now()}`, name: customName, emoji: "🧺", price: 40, unit: "kg", fromCustom: true };
+    }
+  }
+  if (!item) return null;
+  const row = state.order.find((i) => i.id === item.id) || null;
+  const price = row ? row.price : item.price;
+  const unit = unitFromText(text, row ? row.unit : item.unit || "kg");
+  const byMatch = text.match(/\bby\s+(\d+(?:\.\d+)?)/);
+  const by = byMatch ? Math.max(1, Math.round(Number(byMatch[1]))) : null;
+  const qty = quantityIn(text);
+
   if (!row) {
     if (hasRemove) return { kind: "missing", name: item.name, price: item.price, unit };
     if (!hasAdd) return null;
-    return { kind: "add", id: item.id, name: item.name, qty: Math.max(1, Math.round(qty || by || 1)), unit, price, fromCatalog: true };
+    return {
+      kind: "add",
+      id: item.id,
+      name: item.name,
+      qty: Math.max(1, Math.round(qty || by || 1)),
+      unit,
+      price,
+      fromCatalog: !item.fromCustom,
+      fromCustom: !!item.fromCustom,
+    };
   }
   if (hasRemove) return { kind: "remove", id: row.id, name: row.name, unit: row.unit, price: row.price };
   if (hasReduce) {
@@ -820,10 +861,15 @@ export function describeEdit(edit, state) {
   }
   const nextRowQty = edit.kind === "add" ? edit.qty : edit.qty;
   const after = edit.kind === "add" ? total + nextRowQty * edit.price : total + (nextRowQty - (row ? row.qty : 0)) * edit.price;
+  const customNote = edit.fromCustom
+    ? ta
+      ? ` (இயல்பு விலை ₹40 — “${edit.name} விலை 60” என்று சொன்னால் மாற்றலாம்)`
+      : ` (default ₹40 — say "set ${edit.name} price 60" to change)`
+    : "";
   return {
     reply: ta
-      ? `புதுப்பிப்பு: ${nameIn(edit, "ta")} ${nextRowQty} ${unitIn(edit.unit, "ta")}. புதிய மொத்தம் ₹${money(after)}. “அனுப்பு” என்றால் ${MERCHANT.wholesaler}க்கு அனுப்புகிறேன்.`
-      : `Updated: ${edit.name} ${nextRowQty} ${edit.unit}. New total ₹${money(after)}. Say “dispatch” when you want it sent to ${MERCHANT.wholesaler}.`,
+      ? `புதுப்பிப்பு: ${nameIn(edit, "ta")} ${nextRowQty} ${unitIn(edit.unit, "ta")}. புதிய மொத்தம் ₹${money(after)}. “அனுப்பு” என்றால் ${MERCHANT.wholesaler}க்கு அனுப்புகிறேன்.${customNote}`
+      : `Updated: ${edit.name} ${nextRowQty} ${edit.unit}. New total ₹${money(after)}. Say “dispatch” when you want it sent to ${MERCHANT.wholesaler}.${customNote}`,
     authoritative: true,
   };
 }
