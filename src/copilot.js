@@ -1186,8 +1186,17 @@ export function buildReply(raw, state) {
         low.length ? `குறைவாக உள்ளவை:\n${lowLines.join("\n")}` : "அனைத்துப் பொருட்களுக்கும் போதுமான கையிருப்பு."
       }`
     );
+    const spoken = pick(
+      `Your shelves: ${state.order
+        .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
+        .join(", ")}.${low.length ? ` Running low: ${low.map((o) => o.name).join(", ")}.` : " All items have solid cover."}`,
+      `உங்கள் ஸ்டாக்: ${state.order
+        .map((o) => `${o.name} ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
+        .join(", ")}.${low.length ? ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")}.` : " அனைத்திற்கும் போதுமான கையிருப்பு."}`
+    );
     return {
       reply,
+      spoken,
       action: null,
       authoritative: true,
       list: true,
@@ -1274,8 +1283,23 @@ export function buildReply(raw, state) {
         skipLines.length ? skipLines.join("\n") : "• எதுவும் இல்லை"
       }\n\nபொருத்தவா அல்லது “அனுப்பு” என்று சொல்லுங்கள்.`
     );
+    /* The spoken version is one flowing sentence — the agent never reads the
+       bullet list aloud. */
+    const spokenBuy = prediction.buy.map((b) => `${b.name} ${b.toBuy} ${b.unit}`).join(", ");
+    const spokenSkip = prediction.skip
+      .map((s) => `${s.name}, you already have ${s.stock} ${s.unit}`)
+      .join(", ");
+    const spoken = pick(
+      `Here's today's plan for ${place.name}. Buy: ${spokenBuy || "nothing — your shelves cover today"}. Skip: ${
+        spokenSkip || "nothing"
+      }. Total about ${prediction.total} rupees.`,
+      `${place.name} க்கான இன்றைய திட்டம். வாங்க: ${spokenBuy || "எதுவும் இல்லை"}. தவிர்க்க: ${
+        spokenSkip || "எதுவும்"
+      }. மொத்தம் சுமார் ${prediction.total} ரூபாய்.`
+    );
     return {
       reply,
+      spoken,
       action: null,
       authoritative: true,
       list: true,

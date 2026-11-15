@@ -733,11 +733,15 @@ export default function HarvestWise({
         const action = local.action;
         const listMode = local.list === true;
         let reply = local.reply;
+        let speakText = local.spoken || reply;
 
         // Money actions stay deterministic; open questions go to Sarvam's Indic LLM.
         if (!action && ai.chat && !local.authoritative) {
           const aiReply = await askSarvam(text, SRef.current, history);
-          if (aiReply) reply = aiReply;
+          if (aiReply) {
+            reply = aiReply;
+            speakText = aiReply;
+          }
         }
 
         setTyping(false);
@@ -751,7 +755,7 @@ export default function HarvestWise({
           ...prev,
           ...pushMsg(prev, "bot", reply, listMode ? { meta: { kind: "list", actions: listActions } } : undefined),
         }));
-        speak(reply);
+        speak(speakText);
 
         if (action === "recalc") window.setTimeout(recalcOrder, 500);
         if (action === "dispatch") window.setTimeout(() => dispatchOrder(), 700);
