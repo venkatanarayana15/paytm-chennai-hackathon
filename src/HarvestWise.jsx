@@ -1128,7 +1128,7 @@ export default function HarvestWise({
         },
       ],
     }));
-    setDraftProduct({ name: "", unit: draftProduct.unit, price: "", qty: "1", stock: "0", category: "veg", perishable: true });
+    setDraftProduct({ name: "", unit: draftProduct.unit, price: "", qty: "1", category: "veg", perishable: true });
     notify(fmt(t("toastProductAdded"), { name }));
   };
 
@@ -2554,7 +2554,7 @@ export default function HarvestWise({
                   min="1"
                   value={draftProduct.price}
                   onChange={(event) => setDraftProduct((prev) => ({ ...prev, price: event.target.value }))}
-                  placeholder={t("productPrice")}
+                  placeholder={t("productPricePlaceholder")}
                   aria-label={t("productPrice")}
                 />
                 <input
@@ -2562,15 +2562,8 @@ export default function HarvestWise({
                   min="1"
                   value={draftProduct.qty}
                   onChange={(event) => setDraftProduct((prev) => ({ ...prev, qty: event.target.value }))}
+                  placeholder={t("productQtyPlaceholder")}
                   aria-label={t("productQty")}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={draftProduct.stock}
-                  onChange={(event) => setDraftProduct((prev) => ({ ...prev, stock: event.target.value }))}
-                  aria-label={t("stockHeader")}
-                  placeholder="0"
                 />
                 <select
                   className="hw-unit"

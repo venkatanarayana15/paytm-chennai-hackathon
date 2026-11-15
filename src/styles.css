@@ -5123,7 +5123,7 @@ img {
 .hw-product-add {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) 82px 66px 66px 88px 104px 32px auto;
+  grid-template-columns: minmax(130px, 1.4fr) 82px 66px 88px 104px 32px auto;
   gap: 8px;
   align-items: center;
   padding-top: 12px;
