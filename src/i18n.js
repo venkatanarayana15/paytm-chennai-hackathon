@@ -266,6 +266,7 @@ const en = {
   statusBrowser: "Browser voice · add SARVAM_API_KEY for Indic AI",
   statusAi: "Sarvam AI · {model}",
   approvalRule: "Approval gate on every money action",
+  stopSpeak: "Stop",
   send: "Send",
 
   demoTitle: "A day with HarvestWise",
@@ -611,6 +612,7 @@ const ta = {
   statusBrowser: "பிரவுசர் குரல் · இந்திய மொழி AIக்கு SARVAM_API_KEY சேர்க்கவும்",
   statusAi: "சார்வம் AI · {model}",
   approvalRule: "ஒவ்வொரு பண நடவடிக்கைக்கும் ஒப்புதல்",
+  stopSpeak: "நிறுத்து",
   send: "அனுப்பு",
 
   demoTitle: "HarvestWise உடன் ஒரு நாள்",

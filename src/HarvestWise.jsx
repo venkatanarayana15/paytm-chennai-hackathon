@@ -203,6 +203,7 @@ export default function HarvestWise({
   const recorderRef = useRef(null);
   const chunksRef = useRef([]);
   const audioUrlRef = useRef(null);
+  const audioElRef = useRef(null);
   const speechTimer = useRef(null);
 
   const lang = S.settings.lang === "ta" ? "ta" : "en";
@@ -467,15 +468,41 @@ export default function HarvestWise({
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     audioUrlRef.current = url;
     const audio = new Audio(url);
+    audioElRef.current = audio;
     audio.onplay = () => setSpeaking(true);
-    audio.onended = () => setSpeaking(false);
-    audio.onerror = () => setSpeaking(false);
+    audio.onended = () => {
+      setSpeaking(false);
+      audioElRef.current = null;
+    };
+    audio.onerror = () => {
+      setSpeaking(false);
+      audioElRef.current = null;
+    };
     try {
       await audio.play();
       return true;
     } catch {
       return false;
     }
+  };
+
+  /* Interrupt any current speech (browser synth or Sarvam audio). */
+  const stopSpeech = () => {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* ignore */
+    }
+    if (audioElRef.current) {
+      try {
+        audioElRef.current.pause();
+      } catch {
+        /* ignore */
+      }
+      audioElRef.current = null;
+    }
+    if (speechTimer.current) window.clearTimeout(speechTimer.current);
+    setSpeaking(false);
   };
 
   const speak = async (text) => {
@@ -719,6 +746,7 @@ export default function HarvestWise({
   const sendMessage = (raw) => {
     const text = (raw ?? draft).trim();
     if (!text) return;
+    stopSpeech();
     const activeNow =
       SRef.current.sessions.find((session) => session.id === SRef.current.activeSession) || SRef.current.sessions[0];
     const history = activeNow ? activeNow.messages : [];
@@ -871,9 +899,11 @@ export default function HarvestWise({
       return;
     }
     if (ai.stt) {
+      stopSpeech();
       const started = await startRecording();
       if (started) return;
     }
+    stopSpeech();
     startWebSpeech();
   };
 
@@ -1741,6 +1771,11 @@ export default function HarvestWise({
                   </form>
                   <div className="hw-chat-status">
                     <span>
+                      {speaking && (
+                        <button className="hw-speak-stop" onClick={stopSpeech} aria-label={t("stopSpeak")}>
+                          ⏹ {t("stopSpeak")}
+                        </button>
+                      )}
                       {listening
                         ? t("listening")
                         : ai.sarvam

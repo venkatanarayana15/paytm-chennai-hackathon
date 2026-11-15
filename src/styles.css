@@ -2345,6 +2345,22 @@ img {
   font-size: 16px;
   box-shadow: 0 6px 14px rgba(15, 157, 143, 0.3);
 }
+.hw-speak-stop {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  color: #b3413c;
+  background: #fdeceb;
+  border: 1px solid #f3c4c0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.hw-speak-stop:hover {
+  background: #fadcd9;
+}
 .hw-chat-status {
   display: flex;
   justify-content: space-between;
