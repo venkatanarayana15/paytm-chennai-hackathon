@@ -2096,12 +2096,18 @@ export default function HarvestWise({
               </div>
             </div>
 
-            <div className="hw-suggest-grid">
-              <div className="hw-suggest-col">
-                <div className="hw-suggest-label green">✅ {t("suggestBuy")}</div>
+            <section className="hw-card hw-suggest-buy">
+              <div className="hw-card-head">
+                <div>
+                  <h2>✅ {t("suggestBuy")}</h2>
+                  <p className="hw-card-sub">{t("suggestBuySub")}</p>
+                </div>
+                <span className="hw-badge blue">{inr(prediction.total)}</span>
+              </div>
+              <div className="hw-buy-list">
                 {prediction.buy.length === 0 && <p className="hw-suggest-none">{t("suggestBuyNone")}</p>}
                 {prediction.buy.map((b) => (
-                  <div className="hw-suggest-row is-item" key={b.id}>
+                  <div className="hw-buy-card" key={b.id}>
                     <span className="hw-suggest-icobubble" aria-hidden="true">
                       {b.emoji}
                     </span>
@@ -2130,31 +2136,38 @@ export default function HarvestWise({
                   </div>
                 ))}
               </div>
+            </section>
 
-              <div className="hw-suggest-col">
-                <div className="hw-suggest-label red">🚫 {t("suggestSkip")}</div>
+            <section className="hw-card hw-suggest-skip">
+              <div className="hw-card-head">
+                <div>
+                  <h2>🚫 {t("suggestSkip")}</h2>
+                  <p className="hw-card-sub">{t("suggestSkipSub")}</p>
+                </div>
+                <span className="hw-badge green">
+                  {t("savedBySkipping")} {inr(prediction.skip.reduce((sum, s) => sum + s.stock * s.price, 0))}
+                </span>
+              </div>
+              <div className="hw-skip-list">
                 {prediction.skip.length === 0 && <p className="hw-suggest-none">{t("suggestSkipNone")}</p>}
                 {prediction.skip.map((s) => (
-                  <div className="hw-suggest-row" key={s.id}>
-                    <span className="hw-suggest-name">
-                      <span aria-hidden="true">{s.emoji}</span> {s.name}
+                  <div className="hw-skip-row" key={s.id}>
+                    <span className="hw-suggest-icobubble is-muted" aria-hidden="true">
+                      {s.emoji}
                     </span>
-                    <span className="hw-suggest-vel" title={t("velocityTitle")}>
-                      ~{s.velocity || s.salesAvg || s.need}/{t("dayShort")}
+                    <span className="hw-suggest-info">
+                      <strong>{s.name}</strong>
+                      <small>
+                        {s.reason === "stock-covers"
+                          ? fmt(t("reasonStockCovers"), { stock: s.stock })
+                          : fmt(t("reasonWeatherCovers"), { stock: s.stock, need: s.need })}
+                      </small>
                     </span>
-                    <span className="hw-suggest-qty">
-                      <b>{s.stock}</b> {s.unit}
-                    </span>
-                    <span className="hw-suggest-cost muted">—</span>
-                    <span className="hw-chip-reason green">
-                      {s.reason === "stock-covers"
-                        ? fmt(t("reasonStockCovers"), { stock: s.stock })
-                        : fmt(t("reasonWeatherCovers"), { stock: s.stock, need: s.need })}
-                    </span>
+                    <span className="hw-skip-save">−{inr(s.stock * s.price)}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
             {/* Actions */}
             <section className="hw-card hw-suggest-actions-row">
