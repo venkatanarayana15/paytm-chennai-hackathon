@@ -507,8 +507,16 @@ export default function HarvestWise({
 
   const speak = async (text) => {
     if (!SRef.current.settings.voiceout) return;
-    const clean = (text || "").replace(/<[^>]*>/g, "").slice(0, 320);
+    let clean = (text || "").replace(/<[^>]*>/g, "").trim();
     if (!clean) return;
+    /* Long spoken lists must never be cut mid-item: clip only at a clause
+       boundary (". "), and allow long summaries. */
+    const LIMIT = 1200;
+    if (clean.length > LIMIT) {
+      const clipped = clean.slice(0, LIMIT);
+      const boundary = clipped.lastIndexOf(". ");
+      clean = boundary > LIMIT * 0.6 ? clipped.slice(0, boundary + 1) : clipped;
+    }
     if (ai.tts && (await playClip(clean, voiceCode(SRef.current.settings.lang)))) return;
     browserSpeak(clean);
   };

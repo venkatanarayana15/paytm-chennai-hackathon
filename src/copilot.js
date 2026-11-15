@@ -1232,16 +1232,14 @@ export function buildReply(raw, state) {
         low.length ? `குறைவாக உள்ளவை:\n${lowLines.join("\n")}` : "அனைத்துப் பொருட்களுக்கும் போதுமான கையிருப்பு."
       }`
     );
-    /* Spoken: per-item “Name: quantity unit.” clauses, capped so the voice
-       stays clear; quantities can't drift onto the wrong product. */
-    const stockSpoken = state.order.map(
-      (o) => `${o.name}: ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`
-    );
-    const stockSpokenTop = stockSpoken.slice(0, 8).join(". ");
-    const stockSpokenTail = stockSpoken.length > 8 ? `, and ${stockSpoken.length - 8} more items` : "";
+    /* Spoken: every item as its own “Name: quantity unit.” clause, so each
+       quantity is glued to its product — nothing is omitted or capped. */
+    const stockSpoken = state.order
+      .map((o) => `${o.name}: ${Math.max(0, Number(o.stock) || 0)} ${o.unit}`)
+      .join(". ");
     const spoken = pick(
-      `Your shelves: ${stockSpokenTop}${stockSpokenTail}.${low.length ? ` Running low: ${low.map((o) => o.name).join(", ")}.` : " All items have solid cover."}`,
-      `உங்கள் ஸ்டாக்: ${stockSpokenTop}${stockSpokenTail}.${low.length ? ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")}.` : " அனைத்திற்கும் போதுமான கையிருப்பு."}`
+      `Your shelves: ${stockSpoken}.${low.length ? ` Running low: ${low.map((o) => o.name).join(", ")}.` : " All items have solid cover."}`,
+      `உங்கள் ஸ்டாக்: ${stockSpoken}.${low.length ? ` குறைவாக உள்ளவை: ${low.map((o) => o.name).join(", ")}.` : " அனைத்திற்கும் போதுமான கையிருப்பு."}`
     );
     return {
       reply,
