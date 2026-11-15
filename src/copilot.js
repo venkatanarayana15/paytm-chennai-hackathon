@@ -1064,7 +1064,12 @@ export function buildReply(raw, state) {
   if (has(text, K.sellers)) {
     const hist = orderHistoryFromLedger(state);
     const totals = {};
-    hist.forEach((day) => day.items.forEach((it) => { totals[it.id] = (totals[it.id] || 0) + (it.sold || 0); }));
+    hist.forEach((day) =>
+      day.items.forEach((it) => {
+        const sold = typeof it.sold === "number" ? it.sold : Math.max(0, (it.bought || 0) - (it.stocked || 0));
+        totals[it.id] = (totals[it.id] || 0) + sold;
+      })
+    );
     const top = Object.entries(totals)
       .map(([id, total]) => ({ id, total }))
       .sort((a, b) => b.total - a.total)
